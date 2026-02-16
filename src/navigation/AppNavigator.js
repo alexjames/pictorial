@@ -42,7 +42,7 @@ export default function AppNavigator() {
       <Stack.Screen
         name="Detail"
         component={DetailScreen}
-        options={({ route }) => ({ title: route.params.item.name })}
+        options={({ route }) => ({ title: route.params.items[route.params.initialIndex].name })}
       />
     </Stack.Navigator>
   );

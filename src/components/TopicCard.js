@@ -1,17 +1,25 @@
-import React from 'react';
-import { View, Text, ImageBackground, Pressable, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { View, Text, Image, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import colors from '../theme/colors';
 import typography from '../theme/typography';
 
 export default function TopicCard({ topic, onPress }) {
+  const [loading, setLoading] = useState(true);
+
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.container, pressed && styles.pressed]}>
-      <ImageBackground
-        source={{ uri: topic.coverImage }}
-        style={styles.image}
-        imageStyle={styles.imageStyle}
-      >
+      <View style={styles.imageWrapper}>
+        <Image
+          source={{ uri: topic.coverImage }}
+          style={StyleSheet.absoluteFill}
+          onLoadEnd={() => setLoading(false)}
+        />
+        {loading && (
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="large" color={colors.secondary} />
+          </View>
+        )}
         <LinearGradient
           colors={[colors.gradientStart, colors.gradientEnd]}
           style={styles.gradient}
@@ -22,7 +30,7 @@ export default function TopicCard({ topic, onPress }) {
             <Text style={styles.count}>{topic.items.length} items</Text>
           </View>
         </LinearGradient>
-      </ImageBackground>
+      </View>
     </Pressable>
   );
 }
@@ -37,17 +45,18 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     transform: [{ scale: 0.98 }],
   },
-  image: {
+  imageWrapper: {
     height: 200,
-    justifyContent: 'flex-end',
+    backgroundColor: colors.surfaceLight,
   },
-  imageStyle: {
-    borderRadius: 16,
+  loaderContainer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   gradient: {
-    height: '100%',
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
-    borderRadius: 16,
     padding: 18,
   },
   textContainer: {

@@ -15,7 +15,7 @@ export default function TopicScreen({ route, navigation }) {
       renderItem={({ item }) => (
         <ItemCard
           item={item}
-          onPress={() => navigation.navigate('Detail', { item })}
+          onPress={() => navigation.navigate('Detail', { items: topic.items, initialIndex: topic.items.indexOf(item) })}
         />
       )}
       contentContainerStyle={styles.list}

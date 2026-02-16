@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Image, Pressable, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Dimensions } from 'react-native';
+import LoadingImage from './LoadingImage';
 import colors from '../theme/colors';
 import typography from '../theme/typography';
 
@@ -11,7 +12,7 @@ const CARD_WIDTH = (width - HORIZONTAL_PADDING * 2 - CARD_GAP) / 2;
 export default function ItemCard({ item, onPress }) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.container, pressed && styles.pressed]}>
-      <Image source={{ uri: item.image }} style={styles.image} />
+      <LoadingImage source={{ uri: item.image }} style={styles.image} />
       <View style={styles.textContainer}>
         <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
       </View>
