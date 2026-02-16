@@ -14,7 +14,6 @@ export default function ItemCard({ item, onPress }) {
       <Image source={{ uri: item.image }} style={styles.image} />
       <View style={styles.textContainer}>
         <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-        <Text style={styles.snippet} numberOfLines={1}>{item.description}</Text>
       </View>
     </Pressable>
   );

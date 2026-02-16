@@ -4,6 +4,7 @@ import SplashScreen from '../screens/SplashScreen';
 import HomeScreen from '../screens/HomeScreen';
 import TopicScreen from '../screens/TopicScreen';
 import DetailScreen from '../screens/DetailScreen';
+import BackButton from '../components/BackButton';
 import colors from '../theme/colors';
 
 const Stack = createNativeStackNavigator();
@@ -12,14 +13,16 @@ export default function AppNavigator() {
   return (
     <Stack.Navigator
       initialRouteName="Splash"
-      screenOptions={{
+      screenOptions={({ navigation }) => ({
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.primary,
         headerTitleStyle: { fontWeight: '700' },
         contentStyle: { backgroundColor: colors.background },
         animation: 'slide_from_right',
         headerShadowVisible: false,
-      }}
+        headerLeft: ({ canGoBack }) =>
+          canGoBack ? <BackButton onPress={() => navigation.goBack()} /> : null,
+      })}
     >
       <Stack.Screen
         name="Splash"
