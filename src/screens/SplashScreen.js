@@ -6,7 +6,7 @@ import typography from '../theme/typography';
 export default function SplashScreen({ navigation }) {
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigation.replace('Home');
+      navigation.replace('MainTabs');
     }, 2000);
     return () => clearTimeout(timer);
   }, [navigation]);
