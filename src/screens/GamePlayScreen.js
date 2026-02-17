@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { Audio } from 'expo-av';
+import { useAudioPlayer } from 'expo-audio';
 import LoadingImage from '../components/LoadingImage';
 import colors from '../theme/colors';
 import typography from '../theme/typography';
@@ -30,7 +30,7 @@ function shuffle(array) {
 
 export default function GamePlayScreen({ route, navigation }) {
   const { topic } = route.params;
-  const [items] = useState(() => shuffle(topic.items));
+  const [items, setItems] = useState(() => shuffle(topic.items));
   const [currentIndex, setCurrentIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [done, setDone] = useState(false);
@@ -38,14 +38,31 @@ export default function GamePlayScreen({ route, navigation }) {
   const [loadedIndices, setLoadedIndices] = useState(new Set());
   const revealedRef = useRef(false);
   const prefetchedRef = useRef(new Set());
+  const imageLoaded = useMemo(() => loadedIndices.has(currentIndex), [loadedIndices, currentIndex]);
 
   const timerWidth = useRef(new Animated.Value(1)).current;
   const nameOpacity = useRef(new Animated.Value(0)).current;
   const nameScale = useRef(new Animated.Value(0.8)).current;
   const timerAnimation = useRef(null);
   const tickInterval = useRef(null);
-  const tickSound = useRef(null);
-  const revealSound = useRef(null);
+  const tickPlayer = useAudioPlayer(require('../../assets/sounds/tick.wav'));
+  const revealPlayer = useAudioPlayer(require('../../assets/sounds/reveal.wav'));
+
+  // Re-shuffle and reset on each visit
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      const shuffled = shuffle(topic.items);
+      setItems(shuffled);
+      setCurrentIndex(0);
+      setRevealed(false);
+      setDone(false);
+      setReady(false);
+      setLoadedIndices(new Set());
+      revealedRef.current = false;
+      prefetchedRef.current = new Set();
+    });
+    return unsubscribe;
+  }, [navigation, topic.items]);
 
   // Prefetch upcoming images
   const prefetchImages = useCallback((fromIndex, count) => {
@@ -80,37 +97,10 @@ export default function GamePlayScreen({ route, navigation }) {
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', () => {
       stopTimer();
-      tickSound.current?.stopAsync().catch(() => {});
+      tickPlayer.pause();
     });
     return unsubscribe;
-  }, [navigation, stopTimer]);
-
-  // Load sounds
-  useEffect(() => {
-    let mounted = true;
-    async function loadSounds() {
-      try {
-        const { sound: tick } = await Audio.Sound.createAsync(
-          require('../../assets/sounds/tick.wav')
-        );
-        const { sound: reveal } = await Audio.Sound.createAsync(
-          require('../../assets/sounds/reveal.wav')
-        );
-        if (mounted) {
-          tickSound.current = tick;
-          revealSound.current = reveal;
-        }
-      } catch (e) {
-        // Sounds optional — game works without them
-      }
-    }
-    loadSounds();
-    return () => {
-      mounted = false;
-      tickSound.current?.unloadAsync();
-      revealSound.current?.unloadAsync();
-    };
-  }, []);
+  }, [navigation, stopTimer, tickPlayer]);
 
   const stopTimer = useCallback(() => {
     if (timerAnimation.current) {
@@ -123,28 +113,24 @@ export default function GamePlayScreen({ route, navigation }) {
     }
   }, []);
 
-  const playTick = useCallback(async () => {
+  const playTick = useCallback(() => {
     try {
-      if (tickSound.current) {
-        await tickSound.current.setPositionAsync(0);
-        await tickSound.current.playAsync();
-      }
+      tickPlayer.seekTo(0);
+      tickPlayer.play();
     } catch (e) {
       // ignore
     }
-  }, []);
+  }, [tickPlayer]);
 
-  const doReveal = useCallback(async () => {
+  const doReveal = useCallback(() => {
     if (revealedRef.current) return;
     revealedRef.current = true;
     setRevealed(true);
     stopTimer();
 
     try {
-      if (revealSound.current) {
-        await revealSound.current.setPositionAsync(0);
-        await revealSound.current.playAsync();
-      }
+      revealPlayer.seekTo(0);
+      revealPlayer.play();
     } catch (e) {
       // ignore
     }
@@ -162,7 +148,7 @@ export default function GamePlayScreen({ route, navigation }) {
         bounciness: 6,
       }),
     ]).start();
-  }, [stopTimer, nameOpacity, nameScale]);
+  }, [stopTimer, nameOpacity, nameScale, revealPlayer]);
 
   const startRound = useCallback(() => {
     revealedRef.current = false;
@@ -188,8 +174,6 @@ export default function GamePlayScreen({ route, navigation }) {
     tickInterval.current = setInterval(playTick, 1000);
   }, [timerWidth, nameOpacity, nameScale, doReveal, playTick]);
 
-  const imageLoaded = loadedIndices.has(currentIndex);
-
   useEffect(() => {
     if (!done && ready && imageLoaded) {
       startRound();
@@ -210,7 +194,7 @@ export default function GamePlayScreen({ route, navigation }) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={GAME_ACCENT} />
-        <Text style={styles.loadingText}>Loading images…</Text>
+        <Text style={styles.loadingText}>Loading Quiz...</Text>
       </View>
     );
   }
@@ -293,8 +277,9 @@ export default function GamePlayScreen({ route, navigation }) {
           {currentItem.name}
         </Animated.Text>
         <Pressable
-          style={styles.actionButton}
+          style={[styles.actionButton, !revealed && !imageLoaded && styles.actionButtonDisabled]}
           onPress={revealed ? handleNext : doReveal}
+          disabled={!revealed && !imageLoaded}
         >
           <Text style={styles.actionButtonText}>
             {revealed
@@ -327,11 +312,13 @@ const styles = StyleSheet.create({
   imageContainer: {
     flex: 1,
     width: width,
+    backgroundColor: colors.background,
   },
   image: {
     width: '100%',
     height: '100%',
     resizeMode: 'contain',
+    backgroundColor: colors.background,
   },
   answerArea: {
     paddingHorizontal: 20,
@@ -345,6 +332,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 48,
     paddingVertical: 14,
     borderRadius: 30,
+  },
+  actionButtonDisabled: {
+    backgroundColor: colors.surfaceLight,
   },
   actionButtonText: {
     ...typography.h3,
