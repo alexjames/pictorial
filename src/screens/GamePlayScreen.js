@@ -35,6 +35,7 @@ export default function GamePlayScreen({ route, navigation }) {
   const [revealed, setRevealed] = useState(false);
   const [done, setDone] = useState(false);
   const [ready, setReady] = useState(false);
+  const [loadedIndices, setLoadedIndices] = useState(new Set());
   const revealedRef = useRef(false);
   const prefetchedRef = useRef(new Set());
 
@@ -187,12 +188,14 @@ export default function GamePlayScreen({ route, navigation }) {
     tickInterval.current = setInterval(playTick, 1000);
   }, [timerWidth, nameOpacity, nameScale, doReveal, playTick]);
 
+  const imageLoaded = loadedIndices.has(currentIndex);
+
   useEffect(() => {
-    if (!done && ready) {
+    if (!done && ready && imageLoaded) {
       startRound();
     }
     return stopTimer;
-  }, [currentIndex, done, ready, startRound, stopTimer]);
+  }, [currentIndex, done, ready, imageLoaded, startRound, stopTimer]);
 
   const handleNext = useCallback(() => {
     if (currentIndex < items.length - 1) {
@@ -251,12 +254,33 @@ export default function GamePlayScreen({ route, navigation }) {
       {/* Progress */}
       <Text style={styles.progress}>{progress}</Text>
 
-      {/* Image */}
-      <LoadingImage
-        source={{ uri: currentItem.image }}
-        style={styles.image}
-        resizeMode="contain"
-      />
+      {/* Images — keep current + next few mounted to avoid reload flicker */}
+      <View style={styles.imageContainer}>
+        {items.map((item, i) => {
+          if (i < currentIndex || i > currentIndex + PREFETCH_COUNT) return null;
+          return (
+            <View
+              key={item.id}
+              style={[
+                StyleSheet.absoluteFill,
+                { zIndex: i === currentIndex ? 1 : 0, opacity: i === currentIndex ? 1 : 0 },
+              ]}
+            >
+              <LoadingImage
+                source={{ uri: item.image }}
+                style={styles.image}
+                resizeMode="contain"
+                onLoadEnd={() => setLoadedIndices((prev) => {
+                  if (prev.has(i)) return prev;
+                  const next = new Set(prev);
+                  next.add(i);
+                  return next;
+                })}
+              />
+            </View>
+          );
+        })}
+      </View>
 
       {/* Answer area — fixed height so image doesn't resize on reveal */}
       <View style={styles.answerArea}>
@@ -300,9 +324,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: 8,
   },
-  image: {
-    width: width,
+  imageContainer: {
     flex: 1,
+    width: width,
+  },
+  image: {
+    width: '100%',
+    height: '100%',
     resizeMode: 'contain',
   },
   answerArea: {
